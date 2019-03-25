@@ -2,6 +2,46 @@
 
 ## master
 
+- PR [#110](https://github.com/palkan/logidze/pull/110) Add `reset_log_data` API to nullify log_data column ([@Arkweid][])
+
+Usage:
+
+Reset the history for a record (or records):
+
+```ruby
+# for single record
+record.reset_log_data
+
+# for relation
+User.where(active: true).reset_log_data
+```
+
+## 0.9.0 (2018-11-28)
+
+- PR [#98](https://github.com/palkan/logidze/pull/98) Add `:ignore_log_data` option to `#has_logidze` ([@dmitrytsepelev][])
+
+Usage:
+
+```ruby
+class User < ActiveRecord::Base
+  has_logidze ignore_log_data: true
+end
+
+User.all #=> SELECT id, name FROM users
+
+User.with_log_data #=> SELECT id, name, log_data FROM users
+
+user = User.find(params[:id])
+user.log_data #=> ActiveModel::MissingAttributeError
+user.reload_log_data #=> Logidze::History
+```
+
+## 0.8.1 (2018-10-22)
+
+- [PR #93](https://github.com/palkan/logidze/pull/93)] Return 0 for log size when log_data is nil ([@duderman][])
+
+## 0.8.0 (2018-10-01)
+
 - [PR [#87](https://github.com/palkan/logidze/pull/87)] Adding debounce time to avoid spamming changelog creation ([@zocoi][])
 
 Usage:
@@ -209,3 +249,7 @@ This is a quick fix for a more general problem (see [#59](https://github.com/pal
 [@ankursethi-uscis]: https://github.com/ankursethi-uscis
 [@dmitrytsepelev]: https://github.com/DmitryTsepelev
 [@zocoi]: https://github.com/zocoi
+<<<<<<< HEAD
+=======
+[@duderman]: https://github.com/duderman
+>>>>>>> upstream/master

@@ -300,6 +300,13 @@ describe Logidze::Model, :db do
     end
   end
 
+  describe ".reload_log_data" do
+    it "returns log_data" do
+      expect(User).to receive(:where).and_call_original
+      expect(user.reload_log_data).to eq(user.log_data)
+    end
+  end
+
   context "Versioned associations" do
     before(:all) { Logidze.associations_versioning = true }
 
@@ -555,6 +562,46 @@ describe Logidze::Model, :db do
               }
           )
       end
+    end
+  end
+
+  describe '#log_size' do
+    subject { user.log_size }
+
+    it { is_expected.to eq(user.log_data.size) }
+
+    context 'when model created within a without_logging block' do
+      let(:user) { User.create!(name: 'test') }
+
+      before { Logidze.without_logging { user } }
+
+      it { is_expected.to be_zero }
+    end
+  end
+
+  describe '.reset_log_data' do
+    let!(:user2) { user.dup.tap(&:save!) }
+    let!(:user3) { user.dup.tap(&:save!) }
+
+    before { User.limit(2).reset_log_data }
+
+    it 'nullify log_data column for a association' do
+      expect(user.reload.log_size).to be_zero
+      expect(user2.reload.log_size).to be_zero
+    end
+
+    it 'not affect other model records' do
+      expect(user3.reload.log_size).to eq 5
+    end
+  end
+
+  describe '#reset_log_data' do
+    subject { user.log_size }
+
+    before { user.reset_log_data }
+
+    it 'nullify log_data column for a single record' do
+      is_expected.to be_zero
     end
   end
 end

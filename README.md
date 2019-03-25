@@ -145,7 +145,7 @@ post.log_size #=> 3
 old_post = post.at(time: 2.days.ago)
 
 # or revert the record itself to the previous state (without committing to DB)
-post.at!(time: '201-04-15 12:00:00')
+post.at!(time: '2018-04-15 12:00:00')
 
 # If no version found
 post.at(time: '1945-05-09 09:00:00') #=> nil
@@ -186,6 +186,12 @@ post.redo!
 post.switch_to!(2)
 ```
 
+You can initiate reloading of `log_data` from the DB:
+
+```ruby
+post.reload_log_data # => returns the latest log data value
+```
+
 Normally, if you update record after `#undo!` or `#switch_to!` you lose all "future" versions and `#redo!` is no
 longer possible. However, you can provide an `append: true` option to `#undo!` or `#switch_to!`, which will
 create a new version with old data. Caveat: when switching to a newer version, `append` will have no effect.
@@ -204,6 +210,32 @@ Alternatively, you can configure Logidze to always default to `append: true`.
 Logidze.append_on_undo = true
 ```
 
+### How to not load log data by default, or dealing with large logs
+
+By default, Active Record _selects_ all the table columns when no explicit `select` statement specified.
+
+That could slow down queries execution if you have field values which exceed the size of the data block (typically 8KB). PostgreSQL turns on its [TOAST](https://wiki.postgresql.org/wiki/TOAST) mechanism), which requires reading from multiple physical locations for fetching the row's data.
+
+If you do not use compaction (`generate logidze:model ... --limit N`) for `log_data`, you're likely face this problem.
+
+Logidze provides a way to avoid loading `log_data` by default (and load it on demand):
+
+```ruby
+class User < ActiveRecord::Base
+  # Add `ignore_log_data` option to macros
+  has_logidze ignore_log_data: true
+end
+```
+
+After that, each time you use `User.all` (or any other relation method) `log_data` won't be loaded from the DB.
+
+The chart below shows the difference in PG query time before and after turning `ignore_log_data` on. (Special thanks to [@aderyabin](https://github.com/aderyabin) for sharing it.)
+
+![](./assets/pg_log_data_chart.png)
+
+If you try to call `#log_data` on the model loaded in a such way, you'll get `ActiveModel::MissingAttributeError`, but if you really need it (e.g. during the console debugging) - use **`user.reload_log_data`**, which forces loading the column from the DB.
+
+If you need to select `log_data` during the initial load-use a special scope `User.with_log_data`.
 
 ## Track meta information
 
@@ -270,6 +302,18 @@ Logidze.without_logging { Post.update_all(seen: true) }
 # or
 
 Post.without_logging { Post.update_all(seen: true) }
+```
+
+## Reset log
+
+Reset the history for a record (or records):
+
+```ruby
+# for single record
+record.reset_log_data
+
+# for relation
+User.where(active: true).reset_log_data
 ```
 
 ## Log format
